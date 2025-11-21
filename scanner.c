@@ -80,33 +80,46 @@ int scan_file_rules(const char* filename) {
     size_t preserved=0;
     size_t bytes_read=0;
     size_t buffer_size=0;
-
+    
+    int rule_detected[MAX_SIGNATURES] = {0};
+    int eicar_detected = 0;
     int threats_found = 0;
 
     while ((bytes_read = fread(buffer + preserved, 1, CHUNK, file)) > 0) {
 
         buffer_size = preserved + bytes_read;
 
-        if (buffer_size >= EICAR_SIZE) {
+        if (!eicar_detected && buffer_size >= EICAR_SIZE) {
             for (size_t i=0;i<=buffer_size - EICAR_SIZE;i++) {
                 if (memcmp(&buffer[i], eicar_signature, EICAR_SIZE) == 0) {
-                    printf(RED "Ameaca detectada! Regra: EICAR | Arquivo: %s\n" RESET, filename);
+
+                    printf(RED "Ameaca detectada! Regra: EICAR | Arquivo: %s\n" RESET,
+                           filename);
+
+                    eicar_detected=1;
                     threats_found++;
                     break;
                 }
             }
         }
 
-        for (int sig_idx=0;sig_idx < signature_count;sig_idx++) {
+        for (int sig_idx = 0; sig_idx < signature_count; sig_idx++) {
+            if (rule_detected[sig_idx])
+                continue;
+                
             size_t pat_len = signatures[sig_idx].pattern_len;
 
             if (buffer_size < pat_len)
                 continue;
 
-            for (size_t i=0;i<=buffer_size - pat_len; i++) {
+            for (size_t i=0;i<=buffer_size - pat_len;i++) {
+
                 if (memcmp(&buffer[i], signatures[sig_idx].pattern, pat_len)==0) {
+
                     printf(RED "Ameaca detectada! Regra: %s | Arquivo: %s\n" RESET,
-                        signatures[sig_idx].name, filename);
+                           signatures[sig_idx].name, filename);
+
+                    rule_detected[sig_idx]=1;
                     threats_found++;
                     break;
                 }
@@ -159,6 +172,7 @@ void run_rules_test(const char* filename) {
     } else {
         printf("Testando todos os arquivos de teste...\n\n");
         
+       // teste
         char* test_files[] = {
             "eicar_test.txt",
             "malware_test.bin",
